@@ -10,7 +10,7 @@ st.subheader("Unlock insights in your documents with LLM and RAG")
 # ------------------------------------------------------------------------------
 # Backend URL
 # ------------------------------------------------------------------------------
-backend_url = "http://pdf_backend:8003"
+backend_url = "http://doc_backend:8003"
 
 # ------------------------------------------------------------------------------
 # Initialize Session State

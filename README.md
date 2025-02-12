@@ -20,6 +20,7 @@ Note: This code uses ChatGPT APIs.
 * You will need to have an OpenAI API account, with available usage tokens for ChatGPT4.
 * You will also need an API Key, which you can create from https://platform.openai.com/account/api-keys
 * Python 3.12 with libraries FastAPI, Pydantic (see requirements.txt)
+* LangChain 0.3 for Python
 * Docker on Linux (or Docker Desktop for MacOS)
 
 ## Steps to Run As Dockerised Web Service

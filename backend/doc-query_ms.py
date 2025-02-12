@@ -3,22 +3,20 @@ import os
 import shutil
 from fastapi.middleware.cors import CORSMiddleware
 
-from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.prompts import PromptTemplate
 from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain_openai.chat_models import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-import weaviate
-from helper import *
+from helper import wait_for_weaviate_local
 from schemas import QueryRequest
 
 app = FastAPI(
-  title = "PDF Query API",
-  description = "API endpoints for uploading PDFs and asking questions on the PDFs."
+  title = "Document Query API",
+  description = "API endpoints for uploading PDFs, text and Markdown files and asking questions on the contents."
 )
 
 # Enable CORS (Cross-Origin Resource Sharing)
@@ -53,26 +51,17 @@ qa_chain_prompt = PromptTemplate(
   input_variables=["context", "input"]
 )
 
-# Initialize memory
-memory = ConversationBufferWindowMemory(
-  k=5,
-  memory_key="chat_history",
-  return_messages=True,
-  output_key="answer"
-)
-
 # Initialize the chain variable
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
 llm = ChatOpenAI()
 chain = None
 
-
 # API Endpoints
 @app.post("/upload/",
-          summary="Upload a PDF.",tags=["Load"])
+          summary="Upload PDFs, text files or Markdown files.",tags=["Load"])
 async def upload(files: list[UploadFile] = File(...)):
   """
-  Upload PDF files and process them to generate embeddings and store them in Weaviate.
+  Upload files and process them to generate embeddings and store them in Weaviate.
   """
   upload_directory = "uploaded_files"
   os.makedirs(upload_directory, exist_ok=True)
@@ -110,7 +99,7 @@ async def upload(files: list[UploadFile] = File(...)):
   combine_docs_chain = create_stuff_documents_chain(llm, qa_chain_prompt)
   chain = create_retrieval_chain(retriever, combine_docs_chain)
 
-  return {"status": "PDF processed and embeddings generated."}
+  return {"status": "Files processed and embeddings generated."}
 
 
 @app.post("/query/",
