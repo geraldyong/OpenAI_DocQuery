@@ -1,0 +1,14 @@
+services:
+  weaviate:
+    build: .
+    image: weaviate:latest
+    container_name: weaviate
+    ports:
+    - 8083:8083
+    - 50053:50053
+    volumes:
+    - weaviate_data:/var/lib/weaviate
+    restart: on-failure:0
+
+volumes:
+  weaviate_data:
