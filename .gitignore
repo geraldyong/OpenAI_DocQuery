@@ -5,6 +5,7 @@ backup/*
 certs/geraldyong-*.pem
 backend/certs/geraldyong-*.pem
 frontend/certs/geraldyong-*.pem
+backend/__pycache__
 backend/uploaded_files/*
 docs_archived
 rebuild.sh

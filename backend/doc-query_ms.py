@@ -33,8 +33,8 @@ embeddings = OpenAIEmbeddings(
   model="text-embedding-3-small"
 )
 
-# Connect to the local weaviate client.
-wclient = wait_for_weaviate_local(port=8083, gprc_port=50053, timeout=60)
+# Connect to the local vector database client.
+vdbclient = wait_for_weaviate_local(port=8083, gprc_port=50053, timeout=60)
 
 # Define the prompt template
 qa_prompt_template = """
@@ -52,7 +52,7 @@ qa_chain_prompt = PromptTemplate(
 )
 
 # Initialize the chain variable
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 llm = ChatOpenAI()
 chain = None
 
@@ -94,7 +94,11 @@ async def upload(files: list[UploadFile] = File(...)):
 
   # Store embeddings
   global chain
-  weaviate_store = WeaviateVectorStore.from_documents(pages, embeddings, client=wclient)
+  weaviate_store = WeaviateVectorStore.from_documents(
+    all_pages, 
+    embeddings, 
+    client=vdbclient
+  )
   retriever = weaviate_store.as_retriever()
   combine_docs_chain = create_stuff_documents_chain(llm, qa_chain_prompt)
   chain = create_retrieval_chain(retriever, combine_docs_chain)
