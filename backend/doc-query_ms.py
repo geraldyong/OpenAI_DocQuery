@@ -6,13 +6,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.prompts import PromptTemplate
-from langchain_weaviate.vectorstores import WeaviateVectorStore
 from langchain_openai.chat_models import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from helper import wait_for_weaviate_local
 from schemas import QueryRequest
+
+# For Redis
+from langchain_redis.vectorstores import RedisVectorStore
+from helper import wait_for_redis_local
+
+# For Weaviate
+from langchain_weaviate.vectorstores import WeaviateVectorStore
+from helper import wait_for_weaviate_local
+
 
 app = FastAPI(
   title = "Document Query API",
@@ -28,13 +35,23 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
+
 # Initialize Weaviate client and OpenAI embeddings
 embeddings = OpenAIEmbeddings(
   model="text-embedding-3-small"
 )
 
+# Obtain the Vector database from environment variable.
+# For Redis: VECTOR_DB = redis
+# For Weaviate: VECTOR_DB = weaviate
+vdb = os.getenv('VECTOR_DB')
+
 # Connect to the local vector database client.
-vdbclient = wait_for_weaviate_local(port=8083, gprc_port=50053, timeout=60)
+if vdb == 'weaviate':
+  vdbclient = wait_for_weaviate_local(port=8083, gprc_port=50053, timeout=60)
+elif vdb == 'redis':
+  vdbclient = wait_for_redis_local(port=6379, timeout=60)
+
 
 # Define the prompt template
 qa_prompt_template = """
@@ -61,7 +78,7 @@ chain = None
           summary="Upload PDFs, text files or Markdown files.",tags=["Load"])
 async def upload(files: list[UploadFile] = File(...)):
   """
-  Upload files and process them to generate embeddings and store them in Weaviate.
+  Upload files and process them to generate embeddings and store them in the vector database.
   """
   upload_directory = "uploaded_files"
   os.makedirs(upload_directory, exist_ok=True)
@@ -92,14 +109,23 @@ async def upload(files: list[UploadFile] = File(...)):
     pages_text = text_splitter.split_documents(pages)
     all_pages.extend(pages_text)
 
-  # Store embeddings
+  # Store embeddings into vector database.
   global chain
-  weaviate_store = WeaviateVectorStore.from_documents(
-    all_pages, 
-    embeddings, 
-    client=vdbclient
-  )
-  retriever = weaviate_store.as_retriever()
+  if vdb == 'weaviate':
+    weaviate_store = WeaviateVectorStore.from_documents(
+      all_pages, 
+      embeddings, 
+      client=vdbclient
+    )
+    retriever = weaviate_store.as_retriever()
+  elif vdb == 'redis':
+    redis_store = RedisVectorStore.from_documents(
+      all_pages, 
+      embedding=embeddings,
+      redis_client=vdbclient
+    )
+    retriever = redis_store.as_retriever()
+
   combine_docs_chain = create_stuff_documents_chain(llm, qa_chain_prompt)
   chain = create_retrieval_chain(retriever, combine_docs_chain)
 
